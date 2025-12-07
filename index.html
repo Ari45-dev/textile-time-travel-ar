@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AR Textile Cards — Simple Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://urldefense.com/v3/__https://aframe.io/releases/1.4.0/aframe.min.js__;!!DZ3fjg!5PX5nIXBwvoL4mG5997jBLDnys8Dq8g-YuKndEOymyPd1InUjp0KW46fHIzJ_0iEyPV-q3892QGlpwDxqsQu$ "></script>
+    <script src="https://urldefense.com/v3/__https://raw.githack.com/AR-js-org/AR.js/3.3.2/aframe/build/aframe-ar.js__;!!DZ3fjg!5PX5nIXBwvoL4mG5997jBLDnys8Dq8g-YuKndEOymyPd1InUjp0KW46fHIzJ_0iEyPV-q3892QGlp_pKd6wU$ "></script>
+    <style>
+      body { margin:0; font-family: system-ui, Arial, sans-serif; }
+      #controls { position: fixed; left:10px; right:10px; bottom:12px; z-index:999; display:flex; gap:8px; align-items:center; }
+      button { padding:8px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; }
+      #timeSlider { flex:1; }
+      #info { position: fixed; top:10px; left:10px; background: rgba(255,255,240,0.95); padding:8px; border-radius:6px; z-index:999; max-width:320px; font-size:13px; }
+    </style>
+  </head>
+  <body>
+    <div id="info"><strong>AR Textile Cards (test)</strong><br>Print a Hiro marker, open this page on your phone, allow camera, point at the marker, then tap a card button to play its clip.</div>
+
+    <div id="controls">
+      <button id="btnSpin">Spinning</button>
+      <button id="btnDye">Dyeing</button>
+      <button id="btnWeave">Weaving</button>
+      <input id="timeSlider" type="range" min="0" max="100" value="0" />
+      <button id="muteBtn">Muted</button>
+    </div>
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+      <!-- Single Hiro marker for testing -->
+      <a-marker preset="hiro" id="hiroMarker">
+        <a-plane id="videoPlane" position="0 0 0" rotation="-90 0 0" width="1.2" height="0.7" material="shader: flat; src: #videoA"></a-plane>
+      </a-marker>
+
+      <a-entity camera></a-entity>
+
+      <a-assets>
+        <video id="videoA" src="videos/spinning.mp4" loop crossorigin playsinline webkit-playsinline muted></video>
+        <video id="videoB" src="videos/dyeing.mp4"  loop crossorigin playsinline webkit-playsinline muted></video>
+        <video id="videoC" src="videos/weaving.mp4" loop crossorigin playsinline webkit-playsinline muted></video>
+      </a-assets>
+    </a-scene>
+
+    <script>
+      // Elements
+      const btnSpin = document.getElementById('btnSpin');
+      const btnDye  = document.getElementById('btnDye');
+      const btnWeave= document.getElementById('btnWeave');
+      const slider  = document.getElementById('timeSlider');
+      const muteBtn = document.getElementById('muteBtn');
+      const plane   = document.getElementById('videoPlane');
+
+      const vids = {
+        spin: document.getElementById('videoA'),
+        dye:  document.getElementById('videoB'),
+        weave:document.getElementById('videoC')
+      };
+
+      let active = null; // 'spin' | 'dye' | 'weave'
+      const marker = document.getElementById('hiroMarker');
+
+      // Switch which video is shown on the plane
+      function show(key) {
+        // pause any playing video
+        Object.values(vids).forEach(v => { v.pause(); v.currentTime = 0; });
+        active = key;
+        const id = (key === 'spin') ? '#videoA' : (key === 'dye') ? '#videoB' : '#videoC';
+        plane.setAttribute('material', 'src', id);
+        // play if marker visible
+        if (marker.object3D.visible) {
+          vids[key].play().catch(()=>{});
+        }
+      }
+
+      // Buttons
+      btnSpin.addEventListener('click', ()=> show('spin'));
+      btnDye.addEventListener('click', ()=> show('dye'));
+      btnWeave.addEventListener('click', ()=> show('weave'));
+
+      // Marker events: play/pause when marker found/lost
+      marker.addEventListener('markerFound', ()=> {
+        if (active && vids[active]) vids[active].play().catch(()=>{});
+      });
+      marker.addEventListener('markerLost', ()=> {
+        if (active && vids[active]) { vids[active].pause(); vids[active].currentTime = 0; }
+      });
+
+      // Slider scrubbing
+      slider.addEventListener('input', ()=> {
+        if (!active) return;
+        const v = vids[active];
+        if (!v.duration) return;
+        v.currentTime = (slider.value/100) * v.duration;
+        if (v.paused) v.play().catch(()=>{});
+      });
+      Object.values(vids).forEach(v => v.addEventListener('timeupdate', ()=> {
+        if (active && vids[active] === v && v.duration) slider.value = (v.currentTime / v.duration) * 100;
+      }));
+
+      // Mute toggle
+      muteBtn.addEventListener('click', ()=> {
+        const any = vids.spin;
+        any.muted = !any.muted;
+        Object.values(vids).forEach(v => v.muted = any.muted);
+        muteBtn.textContent = any.muted ? 'Muted' : 'Sound';
+      });
+
+      // Enable mobile playback (first tap)
+      document.body.addEventListener('click', ()=> {
+        Object.values(vids).forEach(v => { v.play().then(()=>v.pause()).catch(()=>{}); });
+      }, { once:true });
+
+      // Start by selecting spinning so a button is active
+      show('spin');
+    </script>
+  </body>
+</html>
