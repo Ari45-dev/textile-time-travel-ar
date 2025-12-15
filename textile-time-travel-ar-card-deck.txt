@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AR Textile Cards — Simple Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://urldefense.com/v3/__https://aframe.io/releases/1.4.0/aframe.min.js__;!!DZ3fjg!8aZ2KrrGwhahaAJ0y6djEStREEsq83dm4lwXAM7ch4ktTfKrh5OsDc7VmDYjgB6Tl8eD6aqtKdf6ByNgFC4K$ "></script>
+    <script src="https://urldefense.com/v3/__https://raw.githack.com/AR-js-org/AR.js/3.3.2/aframe/build/aframe-ar.js__;!!DZ3fjg!8aZ2KrrGwhahaAJ0y6djEStREEsq83dm4lwXAM7ch4ktTfKrh5OsDc7VmDYjgB6Tl8eD6aqtKdf6B71mPi81$ "></script>
+    <style>
+      body { margin:0; font-family: system-ui, Arial, sans-serif; }
+      #controls { position: fixed; left:10px; right:10px; bottom:12px; z-index:999; display:flex; gap:8px; align-items:center; }
+      button { padding:8px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; }
+      #timeSlider { flex:1; }
+      #info { position: fixed; top:10px; left:10px; background: rgba(255,255,240,0.95); padding:8px; border-radius:6px; z-index:999; max-width:320px; font-size:13px; }
+    </style>
+  </head>
+
+  <body>
+    <div id="info"><strong>AR Textile Cards (test)</strong><br>Print a Hiro marker, open this page on your phone, allow camera, point at the marker, then tap a card button to play its clip.</div>
+
+    <div id="controls">
+      <button id="btnSpin">Spinning</button>
+      <button id="btnDye">Dyeing</button>
+      <button id="btnWeave">Weaving</button>
+      <input id="timeSlider" type="range" min="0" max="100" value="0" />
+      <button id="muteBtn">Muted</button>
+    </div>
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+      <a-assets>
+        <video id="spinning" src="assets/videos/spinning.mp4" muted playsinline preload="auto" loop crossorigin="anonymous"></video>
+        <video id="dyeing"  src="assets/videos/dyeing.mp4"  muted playsinline preload="auto" loop crossorigin="anonymous"></video>
+        <video id="weaving" src="assets/videos/weaving.mp4" muted playsinline preload="auto" loop crossorigin="anonymous"></video>
+      </a-assets>
+
+      <!-- Marker with a single video plane that we swap the src of -->
+      <a-marker preset="hiro" id="hiroMarker">
+        <a-video id="videoPlane" src="#spinning" width="1" height="1" rotation="-90 0 0" position="0 0 0"></a-video>
+      </a-marker>
+
+      <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+      // DOM elements
+      const btnSpin = document.getElementById('btnSpin');
+      const btnDye  = document.getElementById('btnDye');
+      const btnWeave= document.getElementById('btnWeave');
+      const slider  = document.getElementById('timeSlider');
+      const muteBtn = document.getElementById('muteBtn');
+
+      const vids = {
+        spin: document.getElementById('spinning'),
+        dye:  document.getElementById('dyeing'),
+        weave: document.getElementById('weaving')
+      };
+
+      const plane  = document.getElementById('videoPlane');
+      const marker = document.getElementById('hiroMarker');
+
+      let active = 'spin'; // default active key
+
+      // Helper: ensure element exists
+      function safeGet(v) { return (v && typeof v !== 'undefined') ? v : null; }
+
+      // Pause all videos
+      function pauseAll() {
+        Object.values(vids).forEach(v => { if (v && !v.paused) { v.pause(); } });
+      }
+
+      // Set plane src to the chosen video id and reset times
+      function show(key) {
+        if (!vids[key] || !plane) return;
+        // pause and reset others
+        Object.values(vids).forEach(v => { if (v) { v.pause(); v.currentTime = 0; } });
+        active = key;
+        const id = (key === 'spin') ? '#spinning' : (key === 'dye') ? '#dyeing' : '#weaving';
+        plane.setAttribute('src', id);
+        // update slider immediately
+        slider.value = 0;
+        // if marker visible, attempt to play
+        try {
+          if (marker && marker.object3D && marker.object3D.visible) {
+            vids[key].play().catch(()=>{});
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      // Button handlers
+      btnSpin.addEventListener('click', ()=> show('spin'));
+      btnDye.addEventListener('click', ()=> show('dye'));
+      btnWeave.addEventListener('click', ()=> show('weave'));
+
+      // Marker events: play/pause when marker found/lost
+      if (marker) {
+        marker.addEventListener('markerFound', ()=> {
+          if (active && vids[active]) {
+            vids[active].currentTime = 0;
+            vids[active].play().catch(()=>{ console.warn('Autoplay blocked'); });
+          }
+        });
+        marker.addEventListener('markerLost', ()=> {
+          pauseAll();
+        });
+      }
+
+      // Slider scrubbing
+      slider.addEventListener('input', ()=> {
+        if (!active) return;
+        const v = vids[active];
+        if (!v || !v.duration) return;
+        v.currentTime = (slider.value / 100) * v.duration;
+        if (v.paused) v.play().catch(()=>{});
+      });
+
+      // Keep slider in sync with active video
+      Object.values(vids).forEach(v => {
+        if (!v) return;
+        v.addEventListener('timeupdate', ()=> {
+          if (!active) return;
+          const a = vids[active];
+          if (a && a.duration) slider.value = (a.currentTime / a.duration) * 100;
+        });
+      });
+
+      // Mute toggle (applies to all videos)
+      muteBtn.addEventListener('click', ()=> {
+        const any = vids.spin;
+        if (!any) return;
+        const newMuted = !any.muted;
+        Object.values(vids).forEach(v => { if (v) v.muted = newMuted; });
+        muteBtn.textContent = newMuted ? 'Muted' : 'Sound';
+      });
+
+      // Prime playback on first user gesture to satisfy mobile autoplay policies
+      document.body.addEventListener('click', function primePlayback() {
+        Object.values(vids).forEach(v => {
+          if (!v) return;
+          v.play().then(()=>v.pause()).catch(()=>{});
+        });
+        // keep listener if you want repeated attempts; remove to run once:
+        document.body.removeEventListener('click', primePlayback);
+      }, { once: true });
+
+      // Initialize
+      show('spin');
+    </script>
+  </body>
+</html>
