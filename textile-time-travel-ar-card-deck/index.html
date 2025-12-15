@@ -29,14 +29,15 @@
         overflow-y: auto;
       }
       #sidebar.open { right: 0; }
-      #toggleBtn {
+      #toggleBtn, #audioBtn {
         position: absolute;
-        top: 10px; right: 10px;
         z-index: 3;
         padding: 8px 12px;
         background: #333; color: #fff;
         border: none; cursor: pointer;
       }
+      #toggleBtn { top: 10px; right: 10px; }
+      #audioBtn { top: 50px; right: 10px; }
     </style>
   </head>
   <body>
@@ -49,9 +50,12 @@
     </div>
 
     <button id="toggleBtn" onclick="toggleSidebar()">Show Info</button>
+    <button id="audioBtn" onclick="toggleAudio()">Unmute Audio</button>
+
     <div id="sidebar">
       <h3>Task Details</h3>
       <p id="caption">Point your camera at a marker to see details here.</p>
+      <p id="audioStatus">🔇 Audio OFF</p>
     </div>
 
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
@@ -63,30 +67,18 @@
       </a-assets>
 
       <!-- Spinning marker -->
-      <a-marker type="pattern" url="markers/spinning.patt">
+      <a-marker type="pattern" url="markers/spinning.patt" id="marker-spinning">
         <a-video src="#spinning" width="2" height="1" position="0 0 0"></a-video>
-        <a-entity
-          text="value: Spinning: Took ~2 hours. Fibers twisted into yarn for strength and usability.; width: 3; color: black"
-          position="0 -1 0">
-        </a-entity>
       </a-marker>
 
       <!-- Dyeing marker -->
-      <a-marker type="pattern" url="markers/dyeing.patt">
+      <a-marker type="pattern" url="markers/dyeing.patt" id="marker-dyeing">
         <a-video src="#dyeing" width="2" height="1" position="0 0 0"></a-video>
-        <a-entity
-          text="value: Dyeing: Took ~1 hour. Threads colored to add vibrancy and protect fibers.; width: 3; color: black"
-          position="0 -1 0">
-        </a-entity>
       </a-marker>
 
       <!-- Weaving marker -->
-      <a-marker type="pattern" url="markers/weaving.patt">
+      <a-marker type="pattern" url="markers/weaving.patt" id="marker-weaving">
         <a-video src="#weaving" width="2" height="1" position="0 0 0"></a-video>
-        <a-entity
-          text="value: Weaving: Took ~3 hours. Threads interlaced to form durable, patterned fabric.; width: 3; color: black"
-          position="0 -1 0">
-        </a-entity>
       </a-marker>
 
       <!-- Camera -->
@@ -99,6 +91,58 @@
         sidebar.classList.toggle('open');
         const btn = document.getElementById('toggleBtn');
         btn.textContent = sidebar.classList.contains('open') ? 'Hide Info' : 'Show Info';
+      }
+
+      // Sidebar caption + audio status
+      const caption = document.getElementById('caption');
+      const audioStatus = document.getElementById('audioStatus');
+
+      // Video elements
+      const spinningVideo = document.getElementById('spinning');
+      const dyeingVideo = document.getElementById('dyeing');
+      const weavingVideo = document.getElementById('weaving');
+
+      // Marker events
+      document.querySelector('#marker-spinning').addEventListener('markerFound', () => {
+        caption.textContent = "Spinning: Took ~2 hours. Fibers twisted into yarn for strength and usability.";
+        spinningVideo.play();
+      });
+      document.querySelector('#marker-spinning').addEventListener('markerLost', () => {
+        caption.textContent = "Point your camera at a marker to see details here.";
+        spinningVideo.pause();
+        spinningVideo.currentTime = 0;
+      });
+
+      document.querySelector('#marker-dyeing').addEventListener('markerFound', () => {
+        caption.textContent = "Dyeing: Took ~1 hour. Threads colored to add vibrancy and protect fibers.";
+        dyeingVideo.play();
+      });
+      document.querySelector('#marker-dyeing').addEventListener('markerLost', () => {
+        caption.textContent = "Point your camera at a marker to see details here.";
+        dyeingVideo.pause();
+        dyeingVideo.currentTime = 0;
+      });
+
+      document.querySelector('#marker-weaving').addEventListener('markerFound', () => {
+        caption.textContent = "Weaving: Took ~3 hours. Threads interlaced to form durable, patterned fabric.";
+        weavingVideo.play();
+      });
+      document.querySelector('#marker-weaving').addEventListener('markerLost', () => {
+        caption.textContent = "Point your camera at a marker to see details here.";
+        weavingVideo.pause();
+        weavingVideo.currentTime = 0;
+      });
+
+      // Audio toggle
+      function toggleAudio() {
+        const btn = document.getElementById('audioBtn');
+        const videos = [spinningVideo, dyeingVideo, weavingVideo];
+        const currentlyMuted = videos[0].muted; // check one video
+
+        videos.forEach(v => v.muted = !currentlyMuted);
+
+        btn.textContent = currentlyMuted ? "Mute Audio" : "Unmute Audio";
+        audioStatus.textContent = currentlyMuted ? "🔊 Audio ON" : "🔇 Audio OFF";
       }
     </script>
   </body>
